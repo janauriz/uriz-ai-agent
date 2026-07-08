@@ -1,0 +1,58 @@
+{
+  "issues": [
+    {
+      "key": "URIZ-1",
+      "fields": {
+        "issuetype": {"name": "Epic"},
+        "summary": "Project setup, rules, documentation scaffold",
+        "description": "Create repository rules, README, contribution rules, PR template and SRS map.",
+        "status": {"name": "In Progress"},
+        "priority": {"name": "High"},
+        "assignee": {"displayName": "Jana"},
+        "labels": ["governance"],
+        "acceptance_criteria": [
+          "README explains how to run the agent.",
+          "Every PR template requires a URIZ Jira key.",
+          "Commit hook rejects messages without a Jira key."
+        ]
+      }
+    },
+    {
+      "key": "URIZ-2",
+      "fields": {
+        "issuetype": {"name": "Story"},
+        "summary": "Import backlog data",
+        "description": "Import Jira stuff and make it better and easy.",
+        "status": {"name": "Backlog"},
+        "priority": {"name": "Medium"},
+        "assignee": {"displayName": "Jana"},
+        "labels": []
+      }
+    },
+    {
+      "key": "URIZ-3",
+      "fields": {
+        "issuetype": {"name": "Story"},
+        "summary": "As a product owner, I want story quality analysis, so that weak backlog items are found before sprint planning.",
+        "description": "Acceptance Criteria:\n- Given a Jira story with no acceptance criteria, when audit runs, then the report flags it.\n- Given a vague story, when audit runs, then the report suggests a measurable rewrite.",
+        "status": {"name": "Selected"},
+        "priority": {"name": "High"},
+        "assignee": {"displayName": "Jana"},
+        "labels": ["agent-core"]
+      }
+    },
+    {
+      "key": "URIZ-4",
+      "fields": {
+        "issuetype": {"name": "Story"},
+        "summary": "As a project manager, I want traceability checks, so that Jira tasks can be connected to GitHub work.",
+        "description": "Acceptance Criteria:\n- Given branches or commits with URIZ keys, when audit runs, then linked issues are not reported as gaps.\n- Given an issue with no GitHub evidence, when audit runs, then the report lists a traceability gap.\nThe feature reads API token and repository metadata.",
+        "status": {"name": "In Progress"},
+        "priority": {"name": "High"},
+        "assignee": {"displayName": "Jana"},
+        "labels": ["integration"]
+      }
+    }
+  ]
+}
+

@@ -1,0 +1,11 @@
+{
+  "pull_requests": [
+    {
+      "title": "URIZ-3: add story quality workflow",
+      "body": "Implements analysis for INVEST, acceptance criteria and measurable recommendations.",
+      "url": "https://github.com/janauriz/uriz-ai-agent/pull/3",
+      "state": "merged"
+    }
+  ]
+}
+
