@@ -1,0 +1,3 @@
+#!/usr/bin/env sh
+python scripts/validate_jira_key.py "$1"
+
