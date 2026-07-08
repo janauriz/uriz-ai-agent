@@ -1,10 +1,10 @@
-# Contributing
+﻿# Contributing
 
 This project uses Jira-first development so that the seminar backlog, GitHub activity, and documentation stay aligned.
 
 ## Workflow
 
-1. Pick or create a Jira work item in project `URIZ`.
+1. Pick or create a Jira work item in the Jira space with key `URIZ`.
 2. Create a branch named `URIZ-123-short-description`.
 3. Make focused changes with commits named `URIZ-123: concise summary`.
 4. Run tests and an offline agent audit when relevant.
@@ -35,4 +35,5 @@ Copy-Item tools\git-hooks\commit-msg .git\hooks\commit-msg
 ```
 
 The hook rejects commit messages that do not contain an issue key matching `URIZ-\d+`.
+
 

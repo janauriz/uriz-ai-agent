@@ -1,10 +1,10 @@
-# URIZ Agent Development Rules
+﻿# URIZ Agent Development Rules
 
 This repository implements the URIZ Backlog QA & Traceability Agent. Keep every code, documentation, and test change traceable to Jira work.
 
 ## Jira And Git Rules
 
-- Jira project key is `URIZ`.
+- Jira space key / issue key prefix is `URIZ`.
 - Branch names must include a Jira key, for example `URIZ-123-story-quality-audit`.
 - Commit messages must include a Jira key, for example `URIZ-123: add Jira export parser`.
 - Pull request titles must include a Jira key, for example `URIZ-123: add traceability report`.
@@ -26,4 +26,5 @@ This repository implements the URIZ Backlog QA & Traceability Agent. Keep every 
 - Run `python main.py doctor` after dependency or configuration changes.
 - Run at least one offline demo:
   `python main.py audit --jira-file tests/fixtures/jira_export.json --github-dir . --output-dir reports/demo`
+
 
