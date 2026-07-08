@@ -9,6 +9,8 @@ from pathlib import Path
 from typing import Any, TypedDict
 from uuid import uuid4
 
+from pydantic import BaseModel, Field, ValidationError
+
 from src.uriz_agent.agent.prompts import AUDIT_PROMPT, SYSTEM_PROMPT
 from src.uriz_agent.data.github import issue_keys_in_activity, load_git_activity
 from src.uriz_agent.data.jira import load_jira_issues
@@ -41,7 +43,15 @@ class AuditState(TypedDict, total=False):
     github_linkage_gaps: list[TraceabilityGap]
     story_quality_score: int
     traceability_score: int
+    llm_status: str
     report: AuditReport
+
+
+class LlmAuditOutput(BaseModel):
+    findings: list[StoryFinding] = Field(default_factory=list)
+    risks: list[Risk] = Field(default_factory=list)
+    suggested_test_cases: list[TestCase] = Field(default_factory=list)
+    jira_comment_suggestions: list[JiraCommentSuggestion] = Field(default_factory=list)
 
 
 class SequentialWorkflow:
@@ -106,7 +116,7 @@ def load_sources(state: AuditState) -> AuditState:
 
 
 def normalize_backlog(state: AuditState) -> AuditState:
-    issues = sorted(state["issues"], key=lambda issue: issue.key)
+    issues = sorted(state["issues"], key=_issue_sort_key)
     return {"issues": issues}
 
 
@@ -115,8 +125,9 @@ def analyze_story_quality(state: AuditState) -> AuditState:
     missing_ac: list[StoryFinding] = []
     risks: list[Risk] = []
     total_penalty = 0
+    auditable_issues = [issue for issue in state["issues"] if _is_delivery_issue(issue)]
 
-    for issue in state["issues"]:
+    for issue in auditable_issues:
         issue_penalty = 0
         text = f"{issue.summary}\n{issue.description}".lower()
         if issue.issue_type.lower() in {"story", "user story"} and not _has_user_story_shape(issue):
@@ -175,7 +186,7 @@ def analyze_story_quality(state: AuditState) -> AuditState:
             issue_penalty += 5
         total_penalty += min(issue_penalty, 35)
 
-    max_penalty = max(len(state["issues"]) * 35, 1)
+    max_penalty = max(len(auditable_issues) * 35, 1)
     score = max(0, round(100 - (total_penalty / max_penalty) * 100))
     return {
         "findings": findings,
@@ -189,7 +200,7 @@ def analyze_traceability(state: AuditState) -> AuditState:
     project_key = state.get("project_key", "URIZ")
     linked_keys = issue_keys_in_activity(state["git_activity"], project_key)
     gaps: list[TraceabilityGap] = []
-    auditable_issues = [issue for issue in state["issues"] if issue.issue_type.lower() not in {"epic"}]
+    auditable_issues = [issue for issue in state["issues"] if _is_delivery_issue(issue)]
     for issue in auditable_issues:
         if issue.key not in linked_keys:
             gaps.append(
@@ -205,7 +216,7 @@ def analyze_traceability(state: AuditState) -> AuditState:
 
 
 def generate_recommendations(state: AuditState) -> AuditState:
-    test_cases = [_test_case_for_issue(issue) for issue in state["issues"] if issue.issue_type.lower() not in {"epic"}]
+    test_cases = [_test_case_for_issue(issue) for issue in state["issues"] if _is_delivery_issue(issue)]
     comments = [
         JiraCommentSuggestion(
             issue_key=finding.issue_key,
@@ -214,11 +225,18 @@ def generate_recommendations(state: AuditState) -> AuditState:
         for finding in state.get("findings", [])
     ]
 
-    extra_risks = _llm_risks_if_available(state) if state.get("use_llm") else []
+    llm_output, llm_status = _llm_recommendations_if_available(state) if state.get("use_llm") else (LlmAuditOutput(), "not_requested")
+    merged_findings = _dedupe_by_dump([*state.get("findings", []), *llm_output.findings])
+    merged_risks = _dedupe_by_dump([*state.get("risks", []), *llm_output.risks])
+    merged_test_cases = _dedupe_by_dump([*test_cases, *llm_output.suggested_test_cases])
+    merged_comments = _dedupe_by_dump([*comments, *llm_output.jira_comment_suggestions])
+
     return {
-        "suggested_test_cases": test_cases,
-        "jira_comment_suggestions": comments,
-        "risks": [*state.get("risks", []), *extra_risks],
+        "findings": merged_findings,
+        "suggested_test_cases": merged_test_cases,
+        "jira_comment_suggestions": merged_comments,
+        "risks": merged_risks,
+        "llm_status": llm_status,
     }
 
 
@@ -243,7 +261,9 @@ def build_report(state: AuditState) -> AuditState:
         github_linkage_gaps=state.get("github_linkage_gaps", []),
         metadata={
             "project_key": state.get("project_key", "URIZ"),
+            "issue_keys": [issue.key for issue in issues],
             "llm_requested": state.get("use_llm", False),
+            "llm_status": state.get("llm_status", "not_requested"),
             "branches_scanned": len(state["git_activity"].branches),
             "commits_scanned": len(state["git_activity"].commits),
             "pull_requests_scanned": len(state["git_activity"].pull_requests),
@@ -252,40 +272,108 @@ def build_report(state: AuditState) -> AuditState:
     return {"report": report}
 
 
-def _llm_risks_if_available(state: AuditState) -> list[Risk]:
+def _llm_recommendations_if_available(state: AuditState) -> tuple[LlmAuditOutput, str]:
     if not os.getenv("OPENAI_API_KEY"):
-        return []
+        return LlmAuditOutput(), "skipped_missing_openai_api_key"
     try:
         from langchain_openai import ChatOpenAI
     except ImportError:
-        return []
+        return LlmAuditOutput(), "skipped_missing_langchain_openai"
 
+    allowed_keys = {issue.key for issue in state["issues"]}
     model = os.getenv("OPENAI_MODEL", "gpt-5.4-mini")
-    llm = ChatOpenAI(model=model, temperature=float(os.getenv("OPENAI_TEMPERATURE", "0")))
-    issue_payload = [issue.model_dump(exclude={"raw"}) for issue in state["issues"][:8]]
+    llm = ChatOpenAI(model=model)
+    issue_payload = [issue.model_dump(exclude={"raw"}) for issue in state["issues"]]
     git_payload = state["git_activity"].model_dump()
     prompt = AUDIT_PROMPT.format(
+        allowed_issue_keys=", ".join(sorted(allowed_keys, key=_issue_key_sort_key)),
         issues=json.dumps(issue_payload, ensure_ascii=False, indent=2),
         github_activity=json.dumps(git_payload, ensure_ascii=False, indent=2),
     )
-    response = llm.invoke([("system", SYSTEM_PROMPT), ("human", prompt)])
-    text = getattr(response, "content", "")
-    if not text:
-        return []
-    return [
-        Risk(
-            issue_key=None,
-            level="low",
-            description="LLM-assisted review produced additional qualitative guidance.",
-            mitigation=str(text)[:900],
-        )
-    ]
+    try:
+        response = llm.invoke([("system", SYSTEM_PROMPT), ("human", prompt)])
+    except Exception as exc:  # pragma: no cover - depends on live provider errors.
+        return LlmAuditOutput(risks=[_llm_error_risk(f"OpenAI request failed: {exc}")]), "failed_request"
+
+    text = _response_text(getattr(response, "content", ""))
+    try:
+        raw = json.loads(_strip_json_fence(text))
+        parsed = LlmAuditOutput.model_validate(raw)
+    except (json.JSONDecodeError, ValidationError) as exc:
+        return LlmAuditOutput(risks=[_llm_error_risk(f"OpenAI response was not valid audit JSON: {exc}")]), "failed_invalid_json"
+
+    return _filter_llm_output(parsed, allowed_keys), "used"
+
+
+def _filter_llm_output(output: LlmAuditOutput, allowed_keys: set[str]) -> LlmAuditOutput:
+    return LlmAuditOutput(
+        findings=[item for item in output.findings if item.issue_key in allowed_keys],
+        risks=[item for item in output.risks if item.issue_key is None or item.issue_key in allowed_keys],
+        suggested_test_cases=[item for item in output.suggested_test_cases if item.issue_key in allowed_keys],
+        jira_comment_suggestions=[item for item in output.jira_comment_suggestions if item.issue_key in allowed_keys],
+    )
+
+
+def _llm_error_risk(message: str) -> Risk:
+    return Risk(
+        issue_key=None,
+        level="low",
+        description="LLM-assisted review did not complete.",
+        mitigation=message[:900],
+    )
+
+
+def _response_text(content: Any) -> str:
+    if isinstance(content, str):
+        return content
+    if isinstance(content, list):
+        parts: list[str] = []
+        for item in content:
+            if isinstance(item, dict):
+                parts.append(str(item.get("text") or item.get("content") or ""))
+            else:
+                parts.append(str(item))
+        return "\n".join(part for part in parts if part)
+    return str(content or "")
+
+
+def _strip_json_fence(text: str) -> str:
+    stripped = text.strip()
+    if stripped.startswith("```"):
+        stripped = re.sub(r"^```(?:json)?\s*", "", stripped, flags=re.IGNORECASE)
+        stripped = re.sub(r"\s*```$", "", stripped)
+    return stripped.strip()
+
+
+def _dedupe_by_dump(items: list[Any]) -> list[Any]:
+    seen: set[str] = set()
+    unique: list[Any] = []
+    for item in items:
+        key = item.model_dump_json() if hasattr(item, "model_dump_json") else json.dumps(item, sort_keys=True)
+        if key not in seen:
+            seen.add(key)
+            unique.append(item)
+    return unique
+
+
+def _issue_sort_key(issue: JiraIssue) -> tuple[str, int, str]:
+    return _issue_key_sort_key(issue.key)
+
+
+
+def _is_delivery_issue(issue: JiraIssue) -> bool:
+    return issue.issue_type.strip().lower() not in {"epic"}
+def _issue_key_sort_key(issue_key: str) -> tuple[str, int, str]:
+    match = re.match(r"([A-Z]+)-(\d+)$", issue_key)
+    if not match:
+        return (issue_key, 0, issue_key)
+    return (match.group(1), int(match.group(2)), issue_key)
 
 
 def _has_user_story_shape(issue: JiraIssue) -> bool:
     text = f"{issue.summary} {issue.description}".lower()
     english = all(token in text for token in ["as a", "i want", "so that"])
-    serbian = any(token in text for token in ["kao ", "zelim", "želim", "kako bih", "da bih"])
+    serbian = any(token in text for token in ["kao ", "zelim", "\u017eelim", "kako bih", "da bih"])
     return english or serbian
 
 
@@ -316,4 +404,3 @@ def _test_case_for_issue(issue: JiraIssue) -> TestCase:
         ],
         expected_result=first_ac,
     )
-

@@ -45,7 +45,7 @@ def _load_commits(repo_dir: Path) -> list[GitCommit]:
 def _load_pull_requests(path: Path) -> list[PullRequest]:
     if not path.exists():
         raise FileNotFoundError(f"Pull request metadata file does not exist: {path}")
-    data = json.loads(path.read_text(encoding="utf-8"))
+    data = json.loads(path.read_text(encoding="utf-8-sig"))
     records = data.get("pull_requests", data) if isinstance(data, dict) else data
     return [PullRequest(**record) for record in records]
 

@@ -1,11 +1,16 @@
-{
+﻿{
   "pull_requests": [
     {
-      "title": "URIZ-3: add story quality workflow",
+      "title": "URIZ-12: add story quality workflow",
       "body": "Implements analysis for INVEST, acceptance criteria and measurable recommendations.",
-      "url": "https://github.com/janauriz/uriz-ai-agent/pull/3",
+      "url": "https://github.com/janauriz/uriz-ai-agent/pull/12",
       "state": "merged"
+    },
+    {
+      "title": "URIZ-14: add structured audit reports",
+      "body": "Adds JSON and Markdown report rendering for audit output.",
+      "url": "https://github.com/janauriz/uriz-ai-agent/pull/14",
+      "state": "open"
     }
   ]
 }
-

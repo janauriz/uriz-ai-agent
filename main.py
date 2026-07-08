@@ -1,4 +1,4 @@
-﻿"""CLI entry point for the URIZ Backlog QA & Traceability Agent."""
+"""CLI entry point for the URIZ Backlog QA & Traceability Agent."""
 
 from __future__ import annotations
 
@@ -11,6 +11,7 @@ from pathlib import Path
 
 from src.uriz_agent.agent.graph import run_audit
 from src.uriz_agent.config import load_environment
+from src.uriz_agent.data.jira import JiraRestError, _jira_jql, check_jira_rest
 from src.uriz_agent.reporting import write_report_bundle
 
 
@@ -37,6 +38,9 @@ def build_parser() -> argparse.ArgumentParser:
     sample = subparsers.add_parser("sample-data", help="Copy sample Jira data into a target directory.")
     sample.add_argument("--target-dir", type=Path, default=Path("sample-data"), help="Target directory for copied fixtures.")
 
+    jira_check = subparsers.add_parser("jira-check", help="Validate Jira REST credentials and JQL without running a full audit.")
+    jira_check.add_argument("--project-key", default=DEFAULT_PROJECT_KEY, help="Jira space key / issue key prefix to use in the default JQL.")
+
     subparsers.add_parser("doctor", help="Check local configuration and optional dependencies.")
 
     return parser
@@ -45,19 +49,24 @@ def build_parser() -> argparse.ArgumentParser:
 def command_audit(args: argparse.Namespace) -> int:
     load_environment()
     use_llm = args.use_llm and not args.no_llm
-    report = run_audit(
-        jira_file=args.jira_file,
-        github_dir=args.github_dir,
-        github_pr_file=args.github_pr_file,
-        project_key=args.project_key,
-        use_llm=use_llm,
-        run_id=args.run_id,
-    )
+    try:
+        report = run_audit(
+            jira_file=args.jira_file,
+            github_dir=args.github_dir,
+            github_pr_file=args.github_pr_file,
+            project_key=args.project_key,
+            use_llm=use_llm,
+            run_id=args.run_id,
+        )
+    except (JiraRestError, ValueError) as exc:
+        print(f"Jira input error: {exc}", file=sys.stderr)
+        return 1
     outputs = write_report_bundle(report, args.output_dir)
     print(f"Audit complete: {outputs['markdown']}")
     print(f"JSON report: {outputs['json']}")
     print(f"Story quality score: {report.story_quality_score}")
     print(f"Traceability score: {report.traceability_score}")
+    print(f"Issues analyzed: {report.issues_analyzed}")
     return 0
 
 
@@ -70,13 +79,26 @@ def command_sample_data(args: argparse.Namespace) -> int:
     return 0
 
 
+def command_jira_check(args: argparse.Namespace) -> int:
+    load_environment()
+    try:
+        result = check_jira_rest(args.project_key)
+    except (JiraRestError, ValueError) as exc:
+        print(f"Jira check failed: {exc}", file=sys.stderr)
+        return 1
+    print(json.dumps(result, indent=2))
+    return 0
+
+
 def command_doctor(_: argparse.Namespace) -> int:
     load_environment()
     checks = {
         "OPENAI_API_KEY": bool(os.getenv("OPENAI_API_KEY")),
+        "OPENAI_MODEL": os.getenv("OPENAI_MODEL", "gpt-5.4-mini"),
         "JIRA_BASE_URL": bool(os.getenv("JIRA_BASE_URL")),
         "JIRA_EMAIL": bool(os.getenv("JIRA_EMAIL")),
         "JIRA_API_TOKEN": bool(os.getenv("JIRA_API_TOKEN")),
+        "JIRA_JQL": _jira_jql(DEFAULT_PROJECT_KEY),
     }
     optional_modules = ["pydantic", "langgraph", "langchain_openai", "dotenv"]
     module_status: dict[str, bool] = {}
@@ -101,6 +123,8 @@ def main(argv: list[str] | None = None) -> int:
         return command_audit(args)
     if args.command == "sample-data":
         return command_sample_data(args)
+    if args.command == "jira-check":
+        return command_jira_check(args)
     if args.command == "doctor":
         return command_doctor(args)
     parser.error(f"Unknown command: {args.command}")
@@ -109,5 +133,3 @@ def main(argv: list[str] | None = None) -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
-
-

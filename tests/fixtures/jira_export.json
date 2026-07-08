@@ -1,26 +1,100 @@
-{
+﻿{
   "issues": [
     {
-      "key": "URIZ-1",
+      "key": "URIZ-4",
       "fields": {
         "issuetype": {"name": "Epic"},
-        "summary": "Project setup, rules, documentation scaffold",
-        "description": "Create repository rules, README, contribution rules, PR template and SRS map.",
+        "summary": "Project setup, rules, and documentation scaffold",
+        "description": "Create repository governance and documentation needed to connect Jira, GitHub, and seminar evidence.",
         "status": {"name": "In Progress"},
         "priority": {"name": "High"},
         "assignee": {"displayName": "Jana"},
-        "labels": ["governance"],
+        "labels": ["governance", "seminar"],
         "acceptance_criteria": [
           "README explains how to run the agent.",
-          "Every PR template requires a URIZ Jira key.",
+          "PR template requires a URIZ Jira key.",
           "Commit hook rejects messages without a Jira key."
         ]
       }
     },
     {
-      "key": "URIZ-2",
+      "key": "URIZ-5",
+      "fields": {
+        "issuetype": {"name": "Epic"},
+        "summary": "JIRA and GitHub data ingestion",
+        "description": "Load Jira work items and GitHub development activity for backlog and traceability audits.",
+        "status": {"name": "In Progress"},
+        "priority": {"name": "High"},
+        "assignee": {"displayName": "Jana"},
+        "labels": ["integration"]
+      }
+    },
+    {
+      "key": "URIZ-6",
+      "fields": {
+        "issuetype": {"name": "Epic"},
+        "summary": "LangGraph agent workflow",
+        "description": "Implement multi-step backlog QA workflow with deterministic and LLM-assisted analysis.",
+        "status": {"name": "Selected"},
+        "priority": {"name": "High"},
+        "assignee": {"displayName": "Jana"},
+        "labels": ["agent-core"]
+      }
+    },
+    {
+      "key": "URIZ-7",
+      "fields": {
+        "issuetype": {"name": "Epic"},
+        "summary": "Structured report generation",
+        "description": "Generate JSON and Markdown reports for PM, PO, QA, and seminar review.",
+        "status": {"name": "Backlog"},
+        "priority": {"name": "High"},
+        "assignee": {"displayName": "Jana"},
+        "labels": ["reporting"]
+      }
+    },
+    {
+      "key": "URIZ-8",
+      "fields": {
+        "issuetype": {"name": "Epic"},
+        "summary": "Evaluation on sample inputs",
+        "description": "Validate the agent on weak story, linked story, and risk/testability scenarios.",
+        "status": {"name": "Backlog"},
+        "priority": {"name": "Medium"},
+        "assignee": {"displayName": "Jana"},
+        "labels": ["evaluation"]
+      }
+    },
+    {
+      "key": "URIZ-9",
+      "fields": {
+        "issuetype": {"name": "Epic"},
+        "summary": "SRS and seminar documentation",
+        "description": "Keep SRS, Jira backlog, traceability matrix, and repository documentation aligned.",
+        "status": {"name": "Backlog"},
+        "priority": {"name": "High"},
+        "assignee": {"displayName": "Jana"},
+        "labels": ["documentation", "homework-1"]
+      }
+    },
+    {
+      "key": "URIZ-10",
       "fields": {
         "issuetype": {"name": "Story"},
+        "parent": {"key": "URIZ-4"},
+        "summary": "As a project manager, I want repository governance rules, so that every code change is traceable to Jira.",
+        "description": "Acceptance Criteria:\n- Given a commit message without a URIZ key, when the validator runs, then it fails.\n- Given a PR title with a URIZ key, when the PR is reviewed, then it satisfies the naming rule.",
+        "status": {"name": "In Progress"},
+        "priority": {"name": "High"},
+        "assignee": {"displayName": "Jana"},
+        "labels": ["governance"]
+      }
+    },
+    {
+      "key": "URIZ-11",
+      "fields": {
+        "issuetype": {"name": "Story"},
+        "parent": {"key": "URIZ-5"},
         "summary": "Import backlog data",
         "description": "Import Jira stuff and make it better and easy.",
         "status": {"name": "Backlog"},
@@ -30,9 +104,10 @@
       }
     },
     {
-      "key": "URIZ-3",
+      "key": "URIZ-12",
       "fields": {
         "issuetype": {"name": "Story"},
+        "parent": {"key": "URIZ-6"},
         "summary": "As a product owner, I want story quality analysis, so that weak backlog items are found before sprint planning.",
         "description": "Acceptance Criteria:\n- Given a Jira story with no acceptance criteria, when audit runs, then the report flags it.\n- Given a vague story, when audit runs, then the report suggests a measurable rewrite.",
         "status": {"name": "Selected"},
@@ -42,9 +117,10 @@
       }
     },
     {
-      "key": "URIZ-4",
+      "key": "URIZ-13",
       "fields": {
         "issuetype": {"name": "Story"},
+        "parent": {"key": "URIZ-6"},
         "summary": "As a project manager, I want traceability checks, so that Jira tasks can be connected to GitHub work.",
         "description": "Acceptance Criteria:\n- Given branches or commits with URIZ keys, when audit runs, then linked issues are not reported as gaps.\n- Given an issue with no GitHub evidence, when audit runs, then the report lists a traceability gap.\nThe feature reads API token and repository metadata.",
         "status": {"name": "In Progress"},
@@ -52,7 +128,32 @@
         "assignee": {"displayName": "Jana"},
         "labels": ["integration"]
       }
+    },
+    {
+      "key": "URIZ-14",
+      "fields": {
+        "issuetype": {"name": "Story"},
+        "parent": {"key": "URIZ-7"},
+        "summary": "As a QA engineer, I want JSON and Markdown reports, so that findings can be reviewed and reused as test evidence.",
+        "description": "Acceptance Criteria:\n- Given an audit run, when it finishes, then audit.json is created.\n- Given an audit run, when it finishes, then audit.md contains summary, risks, test cases and traceability gaps.",
+        "status": {"name": "Backlog"},
+        "priority": {"name": "High"},
+        "assignee": {"displayName": "Jana"},
+        "labels": ["reporting"]
+      }
+    },
+    {
+      "key": "URIZ-15",
+      "fields": {
+        "issuetype": {"name": "Story"},
+        "parent": {"key": "URIZ-9"},
+        "summary": "As a student team, we want SRS documentation aligned with code, so that homework and seminar artifacts are consistent.",
+        "description": "Acceptance Criteria:\n- Given the repository documentation, when reviewed, then it references Jira epics and stories.\n- Given the SRS document, when reviewed, then it explains users, scope, functionality, NFRs, external services and technologies.",
+        "status": {"name": "Backlog"},
+        "priority": {"name": "High"},
+        "assignee": {"displayName": "Jana"},
+        "labels": ["documentation", "homework-1"]
+      }
     }
   ]
 }
-
