@@ -43,7 +43,7 @@ def _load_rest(project_key: str) -> list[JiraIssue]:
     base_url = os.getenv("JIRA_BASE_URL", "").rstrip("/")
     email = os.getenv("JIRA_EMAIL", "")
     token = os.getenv("JIRA_API_TOKEN", "")
-    jql = os.getenv("JIRA_JQL", f"project = {project_key} ORDER BY created DESC")
+    jql = os.getenv("JIRA_JQL", f"space = {project_key} ORDER BY created DESC")
     if not all([base_url, email, token]):
         raise ValueError("Provide --jira-file or set JIRA_BASE_URL, JIRA_EMAIL, and JIRA_API_TOKEN.")
 
@@ -150,5 +150,6 @@ def _normalize_acceptance_criteria(explicit_value: Any, description: str) -> lis
         elif capture and len(criteria) < 5 and not lower.endswith(":"):
             criteria.append(line)
     return criteria
+
 
 

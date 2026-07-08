@@ -1,4 +1,4 @@
-# URIZ Backlog QA & Traceability Agent
+﻿# URIZ Backlog QA & Traceability Agent
 
 Python CLI agent for auditing Jira backlog quality and Jira/GitHub traceability. It is designed for the URIZ seminar project and the first/third homework requirements: defined input data, multi-step agent workflow, LLM integration point, external service data, structured output, tests, and documentation.
 
@@ -78,11 +78,11 @@ python main.py sample-data --target-dir sample-data
 - `JIRA_BASE_URL`: Jira Cloud base URL.
 - `JIRA_EMAIL`: Jira account email.
 - `JIRA_API_TOKEN`: Jira API token.
-- `JIRA_JQL`: optional query, defaults to `project = URIZ ORDER BY created DESC`.
+- `JIRA_JQL`: optional query, defaults to `space = URIZ ORDER BY created DESC`.
 
 ## Jira/GitHub Rules
 
-- Jira project key: `URIZ`.
+- Jira space key / issue key prefix: `URIZ`.
 - Branch: `URIZ-123-short-description`.
 - Commit: `URIZ-123: concise change summary`.
 - PR title: `URIZ-123: concise PR title`.
@@ -107,4 +107,6 @@ The tests use fixture data and do not require network access.
 - PR analysis is file-based unless PR metadata is exported to JSON.
 - LLM output is optional and intentionally separated from deterministic rules to keep demos repeatable.
 - Optional Ollama provider support is planned after the OpenAI/LangChain path is stable.
+
+
 
